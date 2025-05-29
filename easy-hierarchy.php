@@ -2,7 +2,7 @@
 /*
 Plugin Name: Easy Hierarchy
 Description: Makes WordPress page hierarchy management easy and intuitive with enhanced filtering and visual hierarchy indicators
-Version: 1.3.0
+Version: 2.0
 Author: Marco Milesi
 Author URI: https://www.marcomilesi.com
 License: GPL Attribution-ShareAlike
