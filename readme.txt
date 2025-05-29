@@ -1,6 +1,6 @@
 === Easy Hierarchy ===
 Contributors: Milmor
-Tags: hierarchy, page, admin, content management, parent-child, tree view, bulk actions
+Tags: hierarchy, page-tree, admin, parent-child, page-management
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.4
 Tested up to: 6.9
