@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    - name: Fix Git Safe Directory Issue
+    - name: Configure Git Safe Directory
       run: git config --global --add safe.directory /github/workspace
     - name: WordPress Plugin Deploy
       uses: 10up/action-wordpress-plugin-deploy@master
