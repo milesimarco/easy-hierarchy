@@ -4,8 +4,8 @@ Tags: hierarchy, page, admin, content management, parent-child, tree view, bulk 
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.4
 Tested up to: 6.9
-Version: 2.0
-Stable tag: 2.0
+Version: 2.0.1
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,7 +56,7 @@ The "Parent" column in the Pages list shows the full parent hierarchy for each p
 
 == Changelog ==
 
-= 2.0 2025-05-29 =
+= 2.0.1 2025-05-29 =
 * Added: Page Tree view for visualizing page hierarchy
 * Added: Quick search/filter for pages in the tree
 * Added: Edit and View actions for each page in the tree
