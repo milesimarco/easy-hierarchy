@@ -8,9 +8,9 @@ jobs:
     name: New tag
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
     - name: Configure Git Safe Directory
       run: git config --global --add safe.directory /github/workspace
+    - uses: actions/checkout@master
     - name: WordPress Plugin Deploy
       uses: 10up/action-wordpress-plugin-deploy@master
       env:
