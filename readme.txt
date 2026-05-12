@@ -3,9 +3,9 @@ Contributors: Milmor
 Tags: hierarchy, page-tree, admin, parent-child, page-management
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.4
-Tested up to: 6.9
-Version: 2.0.3
-Stable tag: 2.0.3
+Tested up to: 7.0
+Version: 2.1
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,10 @@ The "Parent" column in the Pages list shows the full parent hierarchy for each p
 4. Edit and View actions directly in the tree
 
 == Changelog ==
+
+= 2.1 2026-05-13 =
+* Tested with WP 7.0
+* Improved: User interface and hierarchy overview
 
 = 2.0.1 2025-05-29 =
 * Added: Page Tree view for visualizing page hierarchy

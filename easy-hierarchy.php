@@ -2,7 +2,7 @@
 /*
 Plugin Name: Easy Hierarchy
 Description: Makes WordPress page hierarchy management easy and intuitive with enhanced filtering and visual hierarchy indicators
-Version: 2.0.3
+Version: 2.1
 Author: Marco Milesi
 Author URI: https://www.marcomilesi.com
 License: GPL Attribution-ShareAlike
@@ -15,6 +15,7 @@ class Easy_Hierarchy_Plugin {
     public function __construct() {
         add_action('init', [$this, 'load_textdomain']);
         add_action('admin_menu', [$this, 'add_dashboard_page']);
+        add_action('admin_notices', [$this, 'show_subpages_filter_notice']);
 
         // Restore admin columns and filters
         add_filter('parse_query', [$this, 'filter_parent_pages']);
@@ -266,6 +267,46 @@ class Easy_Hierarchy_Plugin {
         }
     }
 
+    public function show_subpages_filter_notice() {
+        global $pagenow;
+
+        if (!is_admin() || $pagenow !== 'edit.php') {
+            return;
+        }
+
+        $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : 'post';
+        if ($post_type !== 'page') {
+            return;
+        }
+
+        if (empty($_GET['eh_parent_pages'])) {
+            return;
+        }
+
+        $parent_id = absint($_GET['eh_parent_pages']);
+        if (!$parent_id) {
+            return;
+        }
+
+        $parent_title = get_the_title($parent_id);
+        if (!$parent_title) {
+            return;
+        }
+
+        $clear_url = remove_query_arg('eh_parent_pages');
+        $message = sprintf(
+            __('You are viewing subpages of "%s".', 'easy-hierarchy'),
+            $parent_title
+        );
+
+        printf(
+            '<div class="notice notice-info"><p><span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true" style="vertical-align:text-bottom;margin-right:6px;"></span>%1$s <a href="%2$s">%3$s</a></p></div>',
+            esc_html($message),
+            esc_url($clear_url),
+            esc_html__('Show all pages', 'easy-hierarchy')
+        );
+    }
+
     public function add_hierarchy_columns($columns) {
         $style = '
             <style>
@@ -298,6 +339,13 @@ class Easy_Hierarchy_Plugin {
                 }
                 .eh-children-count:hover {
                     color: #ffffff;
+                }
+                .eh-subpages-icon {
+                    font-size: 14px;
+                    line-height: 1;
+                    width: 14px;
+                    height: 14px;
+                    margin-right: 4px;
                 }
                 .eh-hierarchy-path {
                     display: flex;
@@ -332,7 +380,7 @@ class Easy_Hierarchy_Plugin {
         foreach ($columns as $key => $value) {
             $new_columns[$key] = $value;
             if ($key === 'title') {
-                $new_columns['page_parent'] = __('Parent') . $style;
+                $new_columns['page_parent'] = __('Hierarchy', 'easy-hierarchy') . $style;
             }
         }
 
@@ -373,16 +421,16 @@ class Easy_Hierarchy_Plugin {
             $count = count($children);
             if ($count) {
                 $tooltip = sprintf(
-                    _n('%s child page', '%s child pages', $count, 'easy-hierarchy'),
+                    _n('%s subpage', '%s subpages', $count, 'easy-hierarchy'),
                     number_format_i18n($count)
                 );
                 $display_text = sprintf(
                     '%s %s',
                     number_format_i18n($count),
-                    _n('child', 'children', $count, 'easy-hierarchy')
+                    _n('subpage', 'subpages', $count, 'easy-hierarchy')
                 );
                 printf(
-                    '<a href="%s" class="eh-children-count" title="%s">%s</a>',
+                    '<a href="%s" class="eh-children-count" title="%s"><span class="dashicons dashicons-arrow-right-alt2 eh-subpages-icon" aria-hidden="true"></span>%s</a>',
                     esc_url(add_query_arg(['eh_parent_pages' => $post_id], $_SERVER['REQUEST_URI'])),
                     esc_attr($tooltip),
                     esc_html($display_text)
