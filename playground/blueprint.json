@@ -8,7 +8,8 @@
 	"steps": [
 		{
 			"step": "login",
-			"username": "admin"
+			"username": "admin",
+			"password": "password"
 		},
 		{
 			"step": "mkdir",
