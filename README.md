@@ -1,6 +1,6 @@
 # Easy Hierarchy
 
-Tree view for Pages & Custom Post Types: a visual hierarchy, a Hierarchy column and a parent filter in the WordPress admin.
+Your whole site, mapped. A clear view of complex WordPress sites: structure, status and quick actions for pages and custom post types.
 
 [![WordPress plugin](https://img.shields.io/wordpress/plugin/v/easy-hierarchy.svg)](https://wordpress.org/plugins/easy-hierarchy/)
 [![Active Installs](https://img.shields.io/wordpress/plugin/installs/easy-hierarchy.svg)](https://wordpress.org/plugins/easy-hierarchy/)
@@ -11,16 +11,33 @@ Tree view for Pages & Custom Post Types: a visual hierarchy, a Hierarchy column 
 
 ![Easy Hierarchy](.wordpress-org/banner-1544x500.png)
 
-See and manage the structure of your site, page by page, for Pages and every hierarchical post type, without leaving the admin.
+Easy Hierarchy is made for people who manage large, complex WordPress sites: hundreds of pages, deep hierarchies, many editors and custom post types.
+
+Over time, the structure gets hard to follow. Pages end up in the wrong place, drafts and scheduled content are forgotten, and finding things means scrolling through flat lists. Easy Hierarchy gives you a clear view of your content, so you can see how the site is organized, check what needs attention and reach any item in one click.
+
+**Made for** public administrations and schools, universities and large organizations, agencies managing client sites, documentation sites, knowledge bases and intranets.
 
 ## Features
 
-- **Tree view** for every hierarchical post type (for example **Pages → Page Tree**), with drafts, pending, private and scheduled items
-- Search, status filter and sorting (title, newest, oldest, recently modified) that keep the hierarchy
-- Publish date, last revision, status and Edit / View links for each item
-- **Hierarchy column** in the list screen, with the full parent path and the number of children
-- **Parent filter** with every item that has children, at any level
+### See the structure
+
+- **Tree view** for Pages and every hierarchical post type (for example **Pages → Page Tree**)
+- **Hierarchy column** in the list screen, with the full parent path of each item
+- Number of children of each item, in the tree and in the list
 - **Settings → Easy Hierarchy**: all hierarchical post types, with links to their list and tree
+
+### Monitor what needs attention
+
+- Drafts, pending, private and scheduled items in the tree
+- Status filter that keeps the parents visible for context
+- Sorting by title, newest, oldest or recently modified, without losing the hierarchy
+- Publish date, last revision and status for each item
+
+### Navigate and act
+
+- Search the tree by title
+- **Parent filter** in the list, with every item that has children at any level
+- Edit and View links for each item
 - Fast on large sites: each screen loads the hierarchy with a single query
 
 ## Requirements

@@ -1,32 +1,51 @@
-=== Easy Hierarchy – Tree View for Pages & Custom Post Types ===
+=== Easy Hierarchy – Monitor Page Tree & Custom Post Types ===
 Contributors: Milmor
 Tags: hierarchy, page tree, parent-child, custom post types, page management
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.6
 Tested up to: 7.2
 Requires PHP: 7.4
-Stable tag: 3.0
+Stable tag: 3.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Hierarchies made easy, for pages and any hierarchical post type.
+Your whole site, mapped. A clear view of complex WordPress sites: structure, status and quick actions for pages and custom post types.
 
 == Description ==
 
-Managing complex hierarchies in WordPress can be a challenge. Easy Hierarchy adds a visual tree, a Hierarchy column and a parent filter to the admin, for Pages and for every hierarchical custom post type (docs, products, chapters and more).
+**Your whole site, mapped.**
 
-**Features:**
-- Adds a "Tree" submenu (for example Pages > Page Tree) with a full visual hierarchy overview.
-- Shows drafts, pending, private and scheduled items too.
-- Quick search, status filter and sorting (title, newest, oldest, recently modified) in the tree, keeping the hierarchy.
-- Shows publish date, last revision date and status for each item, with direct Edit and View links.
-- Highlights the number of children for each parent.
-- **Adds a "Hierarchy" column to the list screen:**
-  - See the full parent hierarchy for each item, with clickable links to filter by parent.
-  - Instantly view the number of children, with quick filtering.
-- Parent filter dropdown with only the items that have children.
-- **Settings > Easy Hierarchy:** see all hierarchical post types and open their list or tree.
-- Fully integrated with the WordPress admin interface.
+Easy Hierarchy is made for people who manage large, complex WordPress sites: hundreds of pages, deep hierarchies, many editors and custom post types.
+
+Over time, the structure gets hard to follow. Pages end up in the wrong place, drafts and scheduled content are forgotten, and finding things means scrolling through flat lists. Easy Hierarchy gives you a clear view of your content, so you can see how the site is organized, check what needs attention and reach any item in one click.
+
+**Who is it for**
+
+- Public administrations and schools
+- Universities and large organizations
+- Agencies managing client sites
+- Documentation sites, knowledge bases and intranets
+
+**See the structure**
+
+- A tree view for Pages and every hierarchical post type (for example Pages > Page Tree).
+- A Hierarchy column in the list screen, with the full parent path of each item.
+- The number of children of each item, in the tree and in the list.
+- Settings > Easy Hierarchy lists all hierarchical post types, with links to their list and tree.
+
+**Monitor what needs attention**
+
+- Drafts, pending, private and scheduled items are shown in the tree.
+- Filter the tree by status, keeping the parents visible for context.
+- Sort by title, newest, oldest or recently modified, without losing the hierarchy.
+- Publish date, last revision and status for each item.
+
+**Navigate and act**
+
+- Search the tree by title.
+- Filter the list by parent, with every item that has children at any level.
+- Edit and View links for each item.
+- Fast on large sites, fully integrated with the WordPress admin.
 
 == Installation ==
 
@@ -53,10 +72,16 @@ The "Hierarchy" column in the list screen shows the full parent hierarchy for ea
 
 == Screenshots ==
 
-1. Page Tree screen and Hierarchy column in the Pages list
-2. Settings > Easy Hierarchy with all hierarchical post types
+1. Page Tree: the whole hierarchy with status, dates and quick Edit / View links
+2. Status filter and sorting in the tree, with parents kept visible for context
+3. Hierarchy column and parent filter in the Pages list
+4. Tree view for a custom post type (Docs)
+5. Settings > Easy Hierarchy with all hierarchical post types
 
 == Changelog ==
+
+= 3.0.1 2026-10-04 =
+* Minor changes
 
 = 3.0 2026-10-04 =
 * Added: Support for all hierarchical post types

@@ -1,8 +1,8 @@
 <?php
 /*
-Plugin Name: Easy Hierarchy – Tree View for Pages & Custom Post Types
+Plugin Name: Easy Hierarchy – Monitor Page Tree & Custom Post Types
 Description: Makes WordPress page hierarchy management easy and intuitive with enhanced filtering and visual hierarchy indicators, for pages and any hierarchical post type
-Version: 3.0
+Version: 3.0.1
 Author: Marco Milesi
 Author URI: https://www.marcomilesi.com
 Requires at least: 4.6
