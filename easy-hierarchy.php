@@ -23,6 +23,7 @@ class Easy_Hierarchy_Plugin {
     private $post_types = null;
     private $children = [];
     private $descendants = [];
+    private $tree_index = 0;
 
     public function __construct() {
         add_action('admin_menu', [$this, 'add_admin_pages']);
@@ -89,6 +90,20 @@ class Easy_Hierarchy_Plugin {
             $this->descendants[$post_type][$parent_id] = $count;
         }
         return $this->descendants[$post_type][$parent_id];
+    }
+
+    /**
+     * Number of items per status, for the tree status filter.
+     */
+    private function count_statuses($post_type) {
+        $this->get_children($post_type, 0);
+        $counts = [];
+        foreach ($this->children[$post_type] as $posts) {
+            foreach ($posts as $post) {
+                $counts[$post->post_status] = isset($counts[$post->post_status]) ? $counts[$post->post_status] + 1 : 1;
+            }
+        }
+        return $counts;
     }
 
     private function get_title($post) {
@@ -186,10 +201,31 @@ class Easy_Hierarchy_Plugin {
         echo '<div class="wrap">';
         echo '<h1>' . esc_html(sprintf(__('%s Hierarchy Overview', 'easy-hierarchy'), $object->labels->name)) . '</h1>';
         ?>
+        <?php if ($top_posts) : ?>
         <div class="eh-search-box">
             <label for="eh-page-search" class="screen-reader-text"><?php echo esc_html($object->labels->search_items); ?></label>
             <input type="text" id="eh-page-search" class="regular-text" placeholder="<?php echo esc_attr($object->labels->search_items); ?>">
+
+            <label for="eh-status-filter" class="screen-reader-text"><?php esc_html_e('Filter by status', 'easy-hierarchy'); ?></label>
+            <select id="eh-status-filter">
+                <option value=""><?php esc_html_e('All statuses', 'easy-hierarchy'); ?></option>
+                <?php foreach ($this->count_statuses($post_type) as $status => $count) :
+                    $status_obj = get_post_status_object($status);
+                    ?>
+                    <option value="<?php echo esc_attr($status); ?>"><?php echo esc_html(($status_obj ? $status_obj->label : $status) . ' (' . number_format_i18n($count) . ')'); ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <label for="eh-sort"><?php esc_html_e('Sort by', 'easy-hierarchy'); ?></label>
+            <select id="eh-sort">
+                <option value="order"><?php esc_html_e('Default order', 'easy-hierarchy'); ?></option>
+                <option value="title"><?php esc_html_e('Title (A-Z)', 'easy-hierarchy'); ?></option>
+                <option value="date_desc"><?php esc_html_e('Newest first', 'easy-hierarchy'); ?></option>
+                <option value="date_asc"><?php esc_html_e('Oldest first', 'easy-hierarchy'); ?></option>
+                <option value="modified_desc"><?php esc_html_e('Recently modified', 'easy-hierarchy'); ?></option>
+            </select>
         </div>
+        <?php endif; ?>
         <?php
         echo '<div class="eh-hierarchy-overview">';
         foreach ($top_posts as $post) {
@@ -200,6 +236,10 @@ class Easy_Hierarchy_Plugin {
         ?>
         <style>
             .eh-search-box {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 10px;
                 margin: 24px 0 16px 0;
                 padding: 16px 18px;
                 background: #f8fafc;
@@ -207,8 +247,12 @@ class Easy_Hierarchy_Plugin {
                 border-radius: 2px;
                 box-shadow: 0 2px 8px rgba(30,40,90,0.04);
             }
+            .eh-search-box label[for="eh-sort"] {
+                margin-left: 8px;
+                color: #646970;
+            }
             .eh-search-box input[type="text"] {
-                width: 100%;
+                flex: 1 1 240px;
                 max-width: 350px;
                 padding: 8px 12px;
                 border-radius: 2px;
@@ -299,17 +343,56 @@ class Easy_Hierarchy_Plugin {
                 color: #646970;
                 font-style: italic;
             }
+            /* Parents shown only because a child matches the filters */
+            .eh-dimmed {
+                opacity: 0.55;
+            }
         </style>
         <script>
         jQuery(document).ready(function($) {
-            $('#eh-page-search').on('input', function() {
-                var searchTerm = $(this).val().toLowerCase();
-                $('.eh-page-tree').each(function() {
-                    var pageTitle = $(this).find('.eh-page-title').text().toLowerCase();
-                    $(this).toggle(pageTitle.includes(searchTerm));
+            var $overview = $('.eh-hierarchy-overview');
+
+            // Sort siblings inside each level, so the hierarchy is kept
+            function sortTree() {
+                var mode = $('#eh-sort').val();
+                var compare = {
+                    order: function(a, b) { return a.dataset.index - b.dataset.index; },
+                    title: function(a, b) { return a.dataset.title.localeCompare(b.dataset.title); },
+                    date_desc: function(a, b) { return b.dataset.date - a.dataset.date; },
+                    date_asc: function(a, b) { return a.dataset.date - b.dataset.date; },
+                    modified_desc: function(a, b) { return b.dataset.modified - a.dataset.modified; }
+                }[mode];
+                $overview.add($overview.find('.eh-page-children')).each(function() {
+                    var $list = $(this);
+                    $list.append($list.children('.eh-page-tree').get().sort(compare));
                 });
-                $('.eh-no-results').prop('hidden', $('.eh-hierarchy-overview > .eh-page-tree:visible').length > 0);
-            });
+            }
+
+            // An item is shown if it matches, or if one of its children does (then it is dimmed)
+            function filterTree() {
+                var term = $('#eh-page-search').val().toLowerCase();
+                var status = $('#eh-status-filter').val();
+                function visit(item) {
+                    var $item = $(item);
+                    var matches = item.dataset.title.toLowerCase().includes(term) && (!status || item.dataset.status === status);
+                    var childVisible = false;
+                    $item.children('.eh-page-children').children('.eh-page-tree').each(function() {
+                        childVisible = visit(this) || childVisible;
+                    });
+                    $item.toggle(matches || childVisible);
+                    $item.children('.eh-page-item').toggleClass('eh-dimmed', !matches && childVisible);
+                    return matches || childVisible;
+                }
+                var anyVisible = false;
+                $overview.children('.eh-page-tree').each(function() {
+                    anyVisible = visit(this) || anyVisible;
+                });
+                $('.eh-no-results').prop('hidden', anyVisible);
+            }
+
+            $('#eh-page-search').on('input', filterTree);
+            $('#eh-status-filter').on('change', filterTree);
+            $('#eh-sort').on('change', sortTree);
         });
         </script>
         <?php
@@ -324,7 +407,14 @@ class Easy_Hierarchy_Plugin {
         $publish_date = get_the_date($date_format, $post);
         $modified_date = get_the_modified_date($date_format, $post);
 
-        echo '<div class="eh-page-tree">';
+        printf(
+            '<div class="eh-page-tree" data-index="%d" data-title="%s" data-status="%s" data-date="%d" data-modified="%d">',
+            $this->tree_index++,
+            esc_attr($this->get_title($post)),
+            esc_attr($post->post_status),
+            get_post_time('U', true, $post),
+            get_post_modified_time('U', true, $post)
+        );
         echo '<div class="eh-page-item eh-page-item-inline">';
         echo '<div class="eh-page-title-inline">';
         echo '<span class="eh-page-title">' . esc_html($this->get_title($post)) . '</span>';
@@ -377,32 +467,41 @@ class Easy_Hierarchy_Plugin {
         if (!$this->is_supported($post_type)) {
             return;
         }
-
-        // Only first level items that have children, sorted by title
-        $parents = array_filter($this->get_children($post_type, 0), function ($post) {
-            return $this->get_children($post->post_type, $post->ID) !== [];
-        });
-        if (!$parents) {
+        $current = isset($_GET['eh_parent_pages']) ? absint($_GET['eh_parent_pages']) : 0;
+        $options = $this->parent_options($post_type, 0, 0, $current);
+        if ($options === '') {
             return;
         }
-        usort($parents, function ($a, $b) {
-            return strcasecmp($a->post_title, $b->post_title);
-        });
-
-        $current = isset($_GET['eh_parent_pages']) ? absint($_GET['eh_parent_pages']) : 0;
 
         echo '<select name="eh_parent_pages">';
-        echo '<option value="">' . esc_html__('All first level items', 'easy-hierarchy') . '</option>';
-        foreach ($parents as $post) {
-            $count = $this->count_descendants($post_type, $post->ID);
-            printf(
-                '<option value="%d"%s>%s</option>',
+        echo '<option value="">' . esc_html(get_post_type_object($post_type)->labels->all_items) . '</option>';
+        echo $options; // Escaped in parent_options()
+        echo '</select>';
+    }
+
+    /**
+     * Options for every item that has children, indented like the tree.
+     */
+    private function parent_options($post_type, $parent_id, $depth, $current) {
+        $html = '';
+        foreach ($this->get_children($post_type, $parent_id) as $post) {
+            if (!$this->has_children($post_type, $post->ID)) {
+                continue;
+            }
+            $html .= sprintf(
+                '<option value="%d"%s>%s%s</option>',
                 $post->ID,
                 selected($current, $post->ID, false),
-                esc_html($this->get_title($post) . ' (' . number_format_i18n($count) . ')')
+                str_repeat('&#160;', $depth * 3),
+                esc_html($this->get_title($post) . ' (' . number_format_i18n($this->count_descendants($post_type, $post->ID)) . ')')
             );
+            $html .= $this->parent_options($post_type, $post->ID, $depth + 1, $current);
         }
-        echo '</select>';
+        return $html;
+    }
+
+    private function has_children($post_type, $parent_id) {
+        return $this->get_children($post_type, $parent_id) !== [];
     }
 
     public function show_subpages_filter_notice() {

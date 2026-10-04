@@ -3,7 +3,7 @@ Contributors: Milmor
 Tags: hierarchy, page tree, parent-child, custom post types, page management
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.6
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 7.4
 Stable tag: 3.0
 License: GPLv2 or later
@@ -18,7 +18,7 @@ Managing complex hierarchies in WordPress can be a challenge. Easy Hierarchy add
 **Features:**
 - Adds a "Tree" submenu (for example Pages > Page Tree) with a full visual hierarchy overview.
 - Shows drafts, pending, private and scheduled items too.
-- Quick search box to filter items by title.
+- Quick search, status filter and sorting (title, newest, oldest, recently modified) in the tree, keeping the hierarchy.
 - Shows publish date, last revision date and status for each item, with direct Edit and View links.
 - Highlights the number of children for each parent.
 - **Adds a "Hierarchy" column to the list screen:**
@@ -59,19 +59,15 @@ The "Hierarchy" column in the list screen shows the full parent hierarchy for ea
 == Changelog ==
 
 = 3.0 2026-10-04 =
-* Added: Support for all hierarchical post types (tree, Hierarchy column and parent filter)
-* Added: Settings > Easy Hierarchy page to see all hierarchical post types and open their list or tree
-* Added: Settings link in the Plugins list
-* Tested with WP 7.1
-* Improved: Page Tree now shows drafts, pending, private and scheduled pages
-* Improved: Parent filter lists only pages with subpages, including non-published ones
-* Improved: Search shows a message when no pages match
-* Improved: Faster Page Tree, parent filter and Hierarchy column on sites with many pages
-* Improved: Subpage counts include drafts, pending, private and scheduled pages
-* Fixed: Hierarchy column styles no longer appear in Screen Options
-* Fixed: Parent filter no longer affects other queries on the Pages screen
-* Fixed: Filter links now reset pagination
-* Security: Escaped page titles and labels in the admin
+* Added: Support for all hierarchical post types
+* Added: Settings page listing hierarchical post types, with links to list and tree
+* Added: Status filter and sorting in the tree
+* Improved: Tree, counts and parent filter include non-published items
+* Improved: Parent filter shows every item with children, at any level
+* Improved: Better search and faster loading on large sites
+* Fixed: Filter, pagination and Screen Options issues
+* Security: Escaped output in the admin
+* Tested with WP 7.2
 
 = 2.1 2026-05-13 =
 * Tested with WP 7.0
@@ -99,4 +95,4 @@ The "Hierarchy" column in the list screen shows the full parent hierarchy for ea
 == Upgrade Notice ==
 
 = 3.0 =
-Easy Hierarchy now works with every hierarchical post type, with a new settings page. Also includes non-published items in the tree, filter fixes and security hardening.
+Easy Hierarchy now works with every hierarchical post type and adds status filter and sorting in the tree. Also includes filter fixes and security hardening.
