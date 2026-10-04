@@ -5,7 +5,10 @@ Description: Makes WordPress page hierarchy management easy and intuitive with e
 Version: 2.2
 Author: Marco Milesi
 Author URI: https://www.marcomilesi.com
-License: GPL Attribution-ShareAlike
+Requires at least: 4.6
+Requires PHP: 7.4
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: easy-hierarchy
 */
 
@@ -15,6 +18,11 @@ class Easy_Hierarchy_Plugin {
     // Statuses shown in the tree and in the parent filter
     const PAGE_STATUSES = 'publish,draft,pending,private,future';
 
+    // Pages and parent => children map, loaded once per request
+    private $pages = null;
+    private $children = [];
+    private $descendants = [];
+
     public function __construct() {
         add_action('admin_menu', [$this, 'add_dashboard_page']);
         add_action('admin_notices', [$this, 'show_subpages_filter_notice']);
@@ -23,7 +31,40 @@ class Easy_Hierarchy_Plugin {
         add_filter('parse_query', [$this, 'filter_parent_pages']);
         add_action('restrict_manage_posts', [$this, 'parent_pages_dropdown']);
         add_filter('manage_pages_columns', [$this, 'add_hierarchy_columns']);
+        add_action('admin_head-edit.php', [$this, 'hierarchy_columns_style']);
         add_action('manage_pages_custom_column', [$this, 'render_hierarchy_columns'], 10, 2);
+    }
+
+    private function load_pages() {
+        if ($this->pages !== null) {
+            return;
+        }
+        $this->pages = [];
+        $pages = get_pages([
+            'post_status' => self::PAGE_STATUSES,
+            'sort_column' => 'menu_order,post_title',
+            'hierarchical' => 0,
+        ]);
+        foreach ($pages as $page) {
+            $this->pages[$page->ID] = $page;
+            $this->children[$page->post_parent][] = $page;
+        }
+    }
+
+    private function get_children($page_id) {
+        $this->load_pages();
+        return isset($this->children[$page_id]) ? $this->children[$page_id] : [];
+    }
+
+    private function count_descendants($page_id) {
+        if (!isset($this->descendants[$page_id])) {
+            $count = 0;
+            foreach ($this->get_children($page_id) as $child) {
+                $count += 1 + $this->count_descendants($child->ID);
+            }
+            $this->descendants[$page_id] = $count;
+        }
+        return $this->descendants[$page_id];
     }
 
     public function add_dashboard_page() {
@@ -46,7 +87,7 @@ class Easy_Hierarchy_Plugin {
             <input type="text" id="eh-page-search" class="regular-text" placeholder="<?php esc_attr_e('Search pages...', 'easy-hierarchy'); ?>">
         </div>
         <?php
-        $top_pages = get_pages(['parent' => 0, 'post_status' => self::PAGE_STATUSES, 'sort_column' => 'menu_order,post_title']);
+        $top_pages = $this->get_children(0);
         echo '<div class="eh-hierarchy-overview">';
         foreach ($top_pages as $page) {
             $this->display_page_tree($page);
@@ -174,7 +215,7 @@ class Easy_Hierarchy_Plugin {
 
     private function display_page_tree($page) {
         $view_link = get_permalink($page->ID);
-        $children = get_pages(['parent' => $page->ID, 'post_status' => self::PAGE_STATUSES, 'sort_column' => 'menu_order,post_title']);
+        $children = $this->get_children($page->ID);
         $child_count = count($children);
 
         $date_format = get_option('date_format');
@@ -231,30 +272,16 @@ class Easy_Hierarchy_Plugin {
         if ($post_type !== 'page') {
             return;
         }
-        // Load all pages once and count descendants in memory
-        $pages = get_pages(['post_status' => self::PAGE_STATUSES, 'sort_column' => 'post_title']);
-        $children = [];
-        foreach ($pages as $page) {
-            $children[$page->post_parent][] = $page->ID;
-        }
-        $count_descendants = function ($id) use (&$count_descendants, $children) {
-            $count = 0;
-            foreach ($children[$id] ?? [] as $child_id) {
-                $count += 1 + $count_descendants($child_id);
-            }
-            return $count;
-        };
-
-        // Only first level pages that have subpages
-        $parent_pages = [];
-        foreach ($pages as $page) {
-            if (!$page->post_parent && !empty($children[$page->ID])) {
-                $parent_pages[] = $page;
-            }
-        }
+        // Only first level pages that have subpages, sorted by title
+        $parent_pages = array_filter($this->get_children(0), function ($page) {
+            return $this->get_children($page->ID) !== [];
+        });
         if (!$parent_pages) {
             return;
         }
+        usort($parent_pages, function ($a, $b) {
+            return strcasecmp($a->post_title, $b->post_title);
+        });
 
         $current = isset($_GET['eh_parent_pages']) ? absint($_GET['eh_parent_pages']) : 0;
 
@@ -262,7 +289,7 @@ class Easy_Hierarchy_Plugin {
         echo '<option value="">' . esc_html__('All first level pages', 'easy-hierarchy') . '</option>';
         foreach ($parent_pages as $page) {
             $title = $page->post_title !== '' ? $page->post_title : __('(no title)', 'default');
-            $count = $count_descendants($page->ID);
+            $count = $this->count_descendants($page->ID);
             printf(
                 '<option value="%d"%s>%s</option>',
                 $page->ID,
@@ -313,8 +340,12 @@ class Easy_Hierarchy_Plugin {
         );
     }
 
-    public function add_hierarchy_columns($columns) {
-        $style = '
+    public function hierarchy_columns_style() {
+        $screen = get_current_screen();
+        if (!$screen || $screen->post_type !== 'page') {
+            return;
+        }
+        ?>
             <style>
                 .column-page_parent { 
                     position: relative;
@@ -379,14 +410,16 @@ class Easy_Hierarchy_Plugin {
                     background: #f0f6fc;
                 }
             </style>
-        ';
+        <?php
+    }
 
+    public function add_hierarchy_columns($columns) {
         // Reorder columns to move hierarchy after title
         $new_columns = array();
         foreach ($columns as $key => $value) {
             $new_columns[$key] = $value;
             if ($key === 'title') {
-                $new_columns['page_parent'] = __('Hierarchy', 'easy-hierarchy') . $style;
+                $new_columns['page_parent'] = __('Hierarchy', 'easy-hierarchy');
             }
         }
 
@@ -426,8 +459,7 @@ class Easy_Hierarchy_Plugin {
             }
 
             // Show children count inline if there are children
-            $children = get_pages(['child_of' => $post_id]);
-            $count = count($children);
+            $count = $this->count_descendants($post_id);
             if ($count) {
                 $tooltip = sprintf(
                     _n('%s subpage', '%s subpages', $count, 'easy-hierarchy'),

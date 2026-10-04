@@ -58,6 +58,9 @@ The "Hierarchy" column in the Pages list shows the full parent hierarchy for eac
 * Improved: Page Tree now shows drafts, pending, private and scheduled pages
 * Improved: Parent filter lists only pages with subpages, including non-published ones
 * Improved: Search shows a message when no pages match
+* Improved: Faster Page Tree, parent filter and Hierarchy column on sites with many pages
+* Improved: Subpage counts include drafts, pending, private and scheduled pages
+* Fixed: Hierarchy column styles no longer appear in Screen Options
 * Fixed: Parent filter no longer affects other queries on the Pages screen
 * Fixed: Filter links now reset pagination
 * Security: Escaped page titles and labels in the admin
