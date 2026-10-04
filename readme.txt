@@ -2,10 +2,10 @@
 Contributors: Milmor
 Tags: hierarchy, page-tree, admin, parent-child, page-management
 Donate link: https://www.paypal.me/milesimarco
-Requires at least: 4.4
-Tested up to: 7.0
-Version: 2.1
-Stable tag: 2.1
+Requires at least: 4.6
+Tested up to: 7.1
+Requires PHP: 7.4
+Stable tag: 2.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,12 +17,12 @@ Managing complex page hierarchies in WordPress can be a challenge. Easy Hierarch
 
 **Features:**
 - Adds a "Page Tree" submenu under Pages for a full visual hierarchy overview.
-- Displays parent and child relationships in a collapsible tree.
+- Displays parent and child relationships in a nested tree, including drafts, pending, private and scheduled pages.
 - Quick search box to filter pages by title.
 - Shows publish date, last revision date, and status for each page.
 - Direct Edit and View links for every page in the tree.
 - Highlights number of child pages for each parent.
-- **Adds a "Parent" column to the Pages list:**  
+- **Adds a "Hierarchy" column to the Pages list:**  
   - See the full parent hierarchy for each page, with clickable links to filter by parent.
   - Instantly view the number of child pages for any page, with quick filtering.
 - Fully integrated with the WordPress admin interface.
@@ -44,17 +44,23 @@ Currently, Easy Hierarchy is designed for the built-in "Pages" post type. Suppor
 = Can I edit or view pages from the tree? =
 Yes! Each page in the tree has Edit and View buttons for quick access.
 
-= What does the new "Parent" column do? =
-The "Parent" column in the Pages list shows the full parent hierarchy for each page, with clickable links to filter by parent. It also displays the number of child pages for each page, making it easy to navigate and manage complex hierarchies.
+= What does the "Hierarchy" column do? =
+The "Hierarchy" column in the Pages list shows the full parent hierarchy for each page, with clickable links to filter by parent. It also displays the number of child pages for each page, making it easy to navigate and manage complex hierarchies.
 
 == Screenshots ==
 
-1. New "Page Tree" submenu in the Pages admin screen
-2. Visual hierarchy tree with parent and child pages
-3. Quick search box for filtering pages
-4. Edit and View actions directly in the tree
+1. Page Tree screen and Hierarchy column in the Pages list
 
 == Changelog ==
+
+= 2.2 2026-10-04 =
+* Tested with WP 7.1
+* Improved: Page Tree now shows drafts, pending, private and scheduled pages
+* Improved: Parent filter includes non-published parent pages
+* Improved: Search shows a message when no pages match
+* Fixed: Parent filter no longer affects other queries on the Pages screen
+* Fixed: Filter links now reset pagination
+* Security: Escaped page titles and labels in the admin
 
 = 2.1 2026-05-13 =
 * Tested with WP 7.0
@@ -81,5 +87,5 @@ The "Parent" column in the Pages list shows the full parent hierarchy for each p
 
 == Upgrade Notice ==
 
-= 1.3 =
-Major update with a new visual Page Tree, quick search, and improved admin UI. Please review the changelog before upgrading.
+= 2.2 =
+Page Tree now includes non-published pages, plus filter fixes and security hardening.
