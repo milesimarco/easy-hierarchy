@@ -1,6 +1,6 @@
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"landingPage": "/wp-admin/edit.php?post_type=page&page=pages-hierarchy",
+	"landingPage": "/wp-admin/options-general.php?page=easy-hierarchy",
 	"preferredVersions": {
 		"php": "8.3",
 		"wp": "latest"
@@ -11,8 +11,17 @@
 			"username": "admin"
 		},
 		{
+			"step": "mkdir",
+			"path": "/wordpress/wp-content/mu-plugins"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/eh-test-post-types.php",
+			"data": "<?php\n// Test post types for Easy Hierarchy\nadd_action('init', function () {\n    register_post_type('doc', [\n        'label' => 'Docs',\n        'labels' => ['name' => 'Docs', 'singular_name' => 'Doc', 'all_items' => 'All Docs', 'search_items' => 'Search Docs', 'not_found' => 'No docs found.'],\n        'public' => true,\n        'hierarchical' => true,\n        'menu_icon' => 'dashicons-book',\n        'supports' => ['title', 'editor', 'page-attributes'],\n    ]);\n    register_post_type('chapter', [\n        'label' => 'Chapters',\n        'labels' => ['name' => 'Chapters', 'singular_name' => 'Chapter', 'all_items' => 'Chapters'],\n        'public' => false,\n        'show_ui' => true,\n        'show_in_menu' => 'tools.php',\n        'hierarchical' => true,\n        'supports' => ['title', 'page-attributes'],\n    ]);\n});\n"
+		},
+		{
 			"step": "runPHP",
-			"code": "<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin('easy-hierarchy/easy-hierarchy.php'); $tree = ['Home' => ['publish', ['About us' => ['publish', ['Team' => ['draft', []], 'History' => ['publish', []]]], 'Services' => ['publish', ['Web design' => ['publish', []], 'SEO' => ['pending', []], 'Hosting' => ['publish', ['Shared' => ['publish', []], 'VPS' => ['private', []]]]]], 'Contact' => ['publish', []]]], 'Landing (draft)' => ['draft', ['Offer' => ['publish', []]]], 'Legal' => ['private', ['Privacy' => ['publish', []], 'Cookies' => ['publish', []]]]]; $add = function ($items, $parent) use (&$add) { $order = 0; foreach ($items as $title => $item) { $id = wp_insert_post(['post_type' => 'page', 'post_title' => $title, 'post_status' => $item[0], 'post_parent' => $parent, 'menu_order' => $order++]); $add($item[1], $id); } }; $add($tree, 0); for ($i = 1; $i <= 25; $i++) { wp_insert_post(['post_type' => 'page', 'post_title' => 'Filler page ' . $i, 'post_status' => 'publish']); }"
+			"code": "<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin('easy-hierarchy/easy-hierarchy.php'); $add = function ($type, $items, $parent) use (&$add) { $order = 0; foreach ($items as $title => $item) { $id = wp_insert_post(['post_type' => $type, 'post_title' => $title, 'post_status' => $item[0], 'post_parent' => $parent, 'menu_order' => $order++]); $add($type, $item[1], $id); } }; $add('page', ['Home' => ['publish', ['About us' => ['publish', ['Team' => ['draft', []], 'History' => ['publish', []]]], 'Services' => ['publish', ['Web design' => ['publish', []], 'SEO' => ['pending', []], 'Hosting' => ['publish', ['Shared' => ['publish', []], 'VPS' => ['private', []]]]]], 'Contact' => ['publish', []]]], 'Landing (draft)' => ['draft', ['Offer' => ['publish', []]]], 'Legal' => ['private', ['Privacy' => ['publish', []], 'Cookies' => ['publish', []]]]], 0); for ($i = 1; $i <= 25; $i++) { wp_insert_post(['post_type' => 'page', 'post_title' => 'Filler page ' . $i, 'post_status' => 'publish']); } $add('doc', ['Getting started' => ['publish', ['Installation' => ['publish', []], 'Configuration' => ['publish', ['Advanced options' => ['draft', []]]]]], 'API reference' => ['publish', ['Hooks' => ['publish', []], 'Filters' => ['publish', []]]], 'FAQ' => ['publish', []]], 0); $add('chapter', ['Part one' => ['publish', ['Chapter 1' => ['publish', []], 'Chapter 2' => ['publish', []]]], 'Part two' => ['publish', ['Chapter 3' => ['publish', []]]]], 0);"
 		}
 	]
 }

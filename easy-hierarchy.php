@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: Easy Hierarchy
-Description: Makes WordPress page hierarchy management easy and intuitive with enhanced filtering and visual hierarchy indicators
-Version: 2.2
+Description: Makes WordPress page hierarchy management easy and intuitive with enhanced filtering and visual hierarchy indicators, for pages and any hierarchical post type
+Version: 3.0
 Author: Marco Milesi
 Author URI: https://www.marcomilesi.com
 Requires at least: 4.6
@@ -15,85 +15,224 @@ Text Domain: easy-hierarchy
 if (!defined('ABSPATH')) exit;
 
 class Easy_Hierarchy_Plugin {
-    // Statuses shown in the tree and in the parent filter
+    // Statuses shown in the tree, in the parent filter and in the counts
     const PAGE_STATUSES = 'publish,draft,pending,private,future';
+    const OPTION = 'easy_hierarchy_post_types';
+    const SETTINGS_SLUG = 'easy-hierarchy';
 
-    // Pages and parent => children map, loaded once per request
-    private $pages = null;
+    // Parent => children map per post type, loaded once per request
     private $children = [];
     private $descendants = [];
 
     public function __construct() {
-        add_action('admin_menu', [$this, 'add_dashboard_page']);
+        add_action('admin_menu', [$this, 'add_admin_pages']);
+        add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_init', [$this, 'register_column_hooks']);
         add_action('admin_notices', [$this, 'show_subpages_filter_notice']);
+        add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$this, 'add_settings_link']);
 
-        // Restore admin columns and filters
         add_filter('parse_query', [$this, 'filter_parent_pages']);
         add_action('restrict_manage_posts', [$this, 'parent_pages_dropdown']);
-        add_filter('manage_pages_columns', [$this, 'add_hierarchy_columns']);
-        add_action('admin_head-edit.php', [$this, 'hierarchy_columns_style']);
         add_action('manage_pages_custom_column', [$this, 'render_hierarchy_columns'], 10, 2);
+        add_action('admin_head-edit.php', [$this, 'hierarchy_columns_style']);
     }
 
-    private function load_pages() {
-        if ($this->pages !== null) {
-            return;
-        }
-        $this->pages = [];
-        $pages = get_pages([
-            'post_status' => self::PAGE_STATUSES,
-            'sort_column' => 'menu_order,post_title',
-            'hierarchical' => 0,
-        ]);
-        foreach ($pages as $page) {
-            $this->pages[$page->ID] = $page;
-            $this->children[$page->post_parent][] = $page;
-        }
+    // === Post types ===
+
+    /**
+     * All hierarchical post types with an admin UI, keyed by name.
+     */
+    public function get_hierarchical_post_types() {
+        $post_types = get_post_types(['hierarchical' => true, 'show_ui' => true], 'objects');
+        return apply_filters('easy_hierarchy_post_types', $post_types);
     }
 
-    private function get_children($page_id) {
-        $this->load_pages();
-        return isset($this->children[$page_id]) ? $this->children[$page_id] : [];
+    private function get_disabled_post_types() {
+        $option = get_option(self::OPTION, []);
+        return isset($option['disabled']) ? (array) $option['disabled'] : [];
     }
 
-    private function count_descendants($page_id) {
-        if (!isset($this->descendants[$page_id])) {
-            $count = 0;
-            foreach ($this->get_children($page_id) as $child) {
-                $count += 1 + $this->count_descendants($child->ID);
+    /**
+     * Hierarchical post types where Easy Hierarchy is active. New post types are enabled by default.
+     */
+    public function get_enabled_post_types() {
+        return array_diff_key($this->get_hierarchical_post_types(), array_flip($this->get_disabled_post_types()));
+    }
+
+    private function is_enabled($post_type) {
+        return is_string($post_type) && array_key_exists($post_type, $this->get_enabled_post_types());
+    }
+
+    private function tree_slug($post_type) {
+        // Keep the original slug for pages so existing bookmarks keep working
+        return $post_type === 'page' ? 'pages-hierarchy' : $post_type . '-hierarchy';
+    }
+
+    private function tree_url($post_type) {
+        return menu_page_url($this->tree_slug($post_type), false);
+    }
+
+    // === Hierarchy data ===
+
+    private function get_children($post_type, $parent_id) {
+        if (!isset($this->children[$post_type])) {
+            $this->children[$post_type] = [];
+            $posts = get_pages([
+                'post_type' => $post_type,
+                'post_status' => self::PAGE_STATUSES,
+                'sort_column' => 'menu_order,post_title',
+                'hierarchical' => 0,
+            ]);
+            foreach ($posts as $post) {
+                $this->children[$post_type][$post->post_parent][] = $post;
             }
-            $this->descendants[$page_id] = $count;
         }
-        return $this->descendants[$page_id];
+        return isset($this->children[$post_type][$parent_id]) ? $this->children[$post_type][$parent_id] : [];
     }
 
-    public function add_dashboard_page() {
-        add_submenu_page(
-            'edit.php?post_type=page',
-            __('Page Tree', 'easy-hierarchy'),
-            __('Page Tree', 'easy-hierarchy'),
-            'edit_pages',
-            'pages-hierarchy',
-            [$this, 'dashboard_page']
+    private function count_descendants($post_type, $parent_id) {
+        if (!isset($this->descendants[$post_type][$parent_id])) {
+            $count = 0;
+            foreach ($this->get_children($post_type, $parent_id) as $child) {
+                $count += 1 + $this->count_descendants($post_type, $child->ID);
+            }
+            $this->descendants[$post_type][$parent_id] = $count;
+        }
+        return $this->descendants[$post_type][$parent_id];
+    }
+
+    private function get_title($post) {
+        return $post->post_title !== '' ? $post->post_title : __('(no title)', 'default');
+    }
+
+    // === Admin pages ===
+
+    public function add_admin_pages() {
+        add_options_page(
+            __('Easy Hierarchy', 'easy-hierarchy'),
+            __('Easy Hierarchy', 'easy-hierarchy'),
+            'manage_options',
+            self::SETTINGS_SLUG,
+            [$this, 'settings_page']
         );
+
+        foreach ($this->get_enabled_post_types() as $post_type => $object) {
+            // Post types without their own top level menu get a hidden tree page, linked from the settings
+            $parent = $object->show_in_menu === true ? 'edit.php?post_type=' . $post_type : 'options.php';
+            $title = sprintf(__('%s Tree', 'easy-hierarchy'), $object->labels->singular_name);
+            add_submenu_page(
+                $parent,
+                $title,
+                $title,
+                $object->cap->edit_posts,
+                $this->tree_slug($post_type),
+                function () use ($post_type) {
+                    $this->tree_page($post_type);
+                }
+            );
+        }
     }
 
-    public function dashboard_page() {
+    public function add_settings_link($links) {
+        $url = admin_url('options-general.php?page=' . self::SETTINGS_SLUG);
+        array_unshift($links, '<a href="' . esc_url($url) . '">' . esc_html__('Settings', 'default') . '</a>');
+        return $links;
+    }
+
+    public function register_settings() {
+        register_setting(self::SETTINGS_SLUG, self::OPTION, [$this, 'sanitize_settings']);
+    }
+
+    public function sanitize_settings($input) {
+        // WordPress runs this twice when the option is first created: keep values already sanitized
+        if (is_array($input) && isset($input['disabled']) && !isset($input['enabled'])) {
+            return ['disabled' => array_values(array_map('sanitize_key', (array) $input['disabled']))];
+        }
+        // Store the disabled post types, so post types registered later are enabled by default
+        $enabled = isset($input['enabled']) ? array_map('sanitize_key', (array) $input['enabled']) : [];
+        $disabled = array_diff(array_keys($this->get_hierarchical_post_types()), $enabled);
+        return ['disabled' => array_values($disabled)];
+    }
+
+    public function settings_page() {
+        $post_types = $this->get_hierarchical_post_types();
+        $disabled = $this->get_disabled_post_types();
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Easy Hierarchy', 'easy-hierarchy'); ?></h1>
+            <p><?php esc_html_e('Choose where to show the tree view, the Hierarchy column and the parent filter. Hierarchical post types added later are enabled automatically.', 'easy-hierarchy'); ?></p>
+            <form method="post" action="options.php">
+                <?php settings_fields(self::SETTINGS_SLUG); ?>
+                <table class="widefat striped eh-settings-table">
+                    <thead>
+                        <tr>
+                            <td class="check-column"></td>
+                            <th scope="col"><?php esc_html_e('Post type', 'easy-hierarchy'); ?></th>
+                            <th scope="col"><?php esc_html_e('Items', 'easy-hierarchy'); ?></th>
+                            <th scope="col"><?php esc_html_e('Links', 'easy-hierarchy'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($post_types as $post_type => $object) :
+                        $enabled = !in_array($post_type, $disabled, true);
+                        $counts = (array) wp_count_posts($post_type);
+                        $total = 0;
+                        foreach (explode(',', self::PAGE_STATUSES) as $status) {
+                            $total += isset($counts[$status]) ? (int) $counts[$status] : 0;
+                        }
+                        $field_id = 'eh-enabled-' . $post_type;
+                        ?>
+                        <tr>
+                            <th scope="row" class="check-column">
+                                <input type="checkbox" id="<?php echo esc_attr($field_id); ?>" name="<?php echo esc_attr(self::OPTION); ?>[enabled][]" value="<?php echo esc_attr($post_type); ?>" <?php checked($enabled); ?>>
+                            </th>
+                            <td>
+                                <label for="<?php echo esc_attr($field_id); ?>"><strong><?php echo esc_html($object->labels->name); ?></strong></label>
+                                <br><code><?php echo esc_html($post_type); ?></code>
+                            </td>
+                            <td><?php echo esc_html(number_format_i18n($total)); ?></td>
+                            <td>
+                                <a href="<?php echo esc_url(admin_url('edit.php?post_type=' . $post_type)); ?>" class="button button-small"><?php echo esc_html($object->labels->all_items); ?></a>
+                                <?php if ($enabled && $this->tree_url($post_type)) : ?>
+                                    <a href="<?php echo esc_url($this->tree_url($post_type)); ?>" class="button button-small"><?php echo esc_html(sprintf(__('%s Tree', 'easy-hierarchy'), $object->labels->singular_name)); ?></a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (!$post_types) : ?>
+                        <tr><td colspan="4"><?php esc_html_e('No hierarchical post types found.', 'easy-hierarchy'); ?></td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+                <?php submit_button(); ?>
+            </form>
+        </div>
+        <style>
+            .eh-settings-table { max-width: 900px; }
+            .eh-settings-table td, .eh-settings-table th { vertical-align: middle; }
+            .eh-settings-table .button + .button { margin-left: 6px; }
+        </style>
+        <?php
+    }
+
+    public function tree_page($post_type) {
+        $object = get_post_type_object($post_type);
+        $top_posts = $this->get_children($post_type, 0);
+
         echo '<div class="wrap">';
-        echo '<h1>' . esc_html__('Pages Hierarchy Overview', 'easy-hierarchy') . '</h1>';
+        echo '<h1>' . esc_html(sprintf(__('%s Hierarchy Overview', 'easy-hierarchy'), $object->labels->name)) . '</h1>';
         ?>
         <div class="eh-search-box">
-            <label for="eh-page-search" class="screen-reader-text"><?php esc_html_e('Search pages', 'easy-hierarchy'); ?></label>
-            <input type="text" id="eh-page-search" class="regular-text" placeholder="<?php esc_attr_e('Search pages...', 'easy-hierarchy'); ?>">
+            <label for="eh-page-search" class="screen-reader-text"><?php echo esc_html($object->labels->search_items); ?></label>
+            <input type="text" id="eh-page-search" class="regular-text" placeholder="<?php echo esc_attr($object->labels->search_items); ?>">
         </div>
         <?php
-        $top_pages = $this->get_children(0);
         echo '<div class="eh-hierarchy-overview">';
-        foreach ($top_pages as $page) {
-            $this->display_page_tree($page);
+        foreach ($top_posts as $post) {
+            $this->display_page_tree($post);
         }
         echo '</div>';
-        echo '<p class="eh-no-results"' . ($top_pages ? ' hidden' : '') . '>' . esc_html__('No pages found.', 'easy-hierarchy') . '</p>';
+        echo '<p class="eh-no-results"' . ($top_posts ? ' hidden' : '') . '>' . esc_html($object->labels->not_found) . '</p>';
         ?>
         <style>
             .eh-search-box {
@@ -213,20 +352,18 @@ class Easy_Hierarchy_Plugin {
         echo '</div>';
     }
 
-    private function display_page_tree($page) {
-        $view_link = get_permalink($page->ID);
-        $children = $this->get_children($page->ID);
+    private function display_page_tree($post) {
+        $children = $this->get_children($post->post_type, $post->ID);
         $child_count = count($children);
 
         $date_format = get_option('date_format');
-        $publish_date = get_the_date($date_format, $page);
-        $modified_date = get_the_modified_date($date_format, $page);
+        $publish_date = get_the_date($date_format, $post);
+        $modified_date = get_the_modified_date($date_format, $post);
 
         echo '<div class="eh-page-tree">';
-        echo '<div class="eh-page-item eh-page-item-inline">'; // Add new class for inline style
-        // Inline row
+        echo '<div class="eh-page-item eh-page-item-inline">';
         echo '<div class="eh-page-title-inline">';
-        echo '<span class="eh-page-title">' . esc_html($page->post_title !== '' ? $page->post_title : __('(no title)', 'default')) . '</span>';
+        echo '<span class="eh-page-title">' . esc_html($this->get_title($post)) . '</span>';
         if ($child_count > 0) {
             echo '<span class="title-count">' . esc_html(number_format_i18n($child_count)) . '</span>';
         }
@@ -234,17 +371,21 @@ class Easy_Hierarchy_Plugin {
         echo '<div class="eh-page-meta-inline">';
         echo '<span class="eh-date-meta"><strong>' . esc_html__('Published', 'default') . ':</strong> <span>' . esc_html($publish_date) . '</span></span>';
         echo '<span class="eh-date-meta"><strong>' . esc_html__('Revision', 'default') . ':</strong> <span>' . esc_html($modified_date) . '</span></span>';
-        $status_obj = get_post_status_object($page->post_status);
-        $status_label = $status_obj ? $status_obj->label : ucfirst($page->post_status);
+        $status_obj = get_post_status_object($post->post_status);
+        $status_label = $status_obj ? $status_obj->label : ucfirst($post->post_status);
         echo '<span class="eh-date-meta"><strong>' . esc_html__('Status:', 'default') . '</strong> <span>' . esc_html($status_label) . '</span></span>';
         echo '</div>';
         echo '<div class="eh-page-actions-inline">';
-        echo '<a href="' . esc_url(get_edit_post_link($page->ID)) . '" class="button button-small">' . esc_html__('Edit', 'default') . '</a>';
-        echo '<a href="' . esc_url($view_link) . '" target="_blank" rel="noopener" class="button button-small">' . esc_html__('View', 'default') . '</a>';
+        $edit_link = get_edit_post_link($post->ID);
+        if ($edit_link) {
+            echo '<a href="' . esc_url($edit_link) . '" class="button button-small">' . esc_html__('Edit', 'default') . '</a>';
+        }
+        if (is_post_type_viewable($post->post_type)) {
+            echo '<a href="' . esc_url(get_permalink($post->ID)) . '" target="_blank" rel="noopener" class="button button-small">' . esc_html__('View', 'default') . '</a>';
+        }
         echo '</div>';
         echo '</div>'; // .eh-page-item
 
-        // Children (indented, but still one-line per child)
         if (!empty($children)) {
             echo '<div class="eh-page-children">';
             foreach ($children as $child) {
@@ -255,46 +396,46 @@ class Easy_Hierarchy_Plugin {
         echo '</div>'; // .eh-page-tree
     }
 
-    // === Restored admin columns and filters ===
+    // === List screen: filter, notice and Hierarchy column ===
 
     public function filter_parent_pages($query) {
         global $pagenow;
         if (!is_admin() || $pagenow !== 'edit.php' || empty($_GET['eh_parent_pages'])) {
             return;
         }
-        if (!$query->is_main_query() || $query->get('post_type') !== 'page') {
+        if (!$query->is_main_query() || !$this->is_enabled($query->get('post_type'))) {
             return;
         }
         $query->set('post_parent', absint($_GET['eh_parent_pages']));
     }
 
     public function parent_pages_dropdown($post_type) {
-        if ($post_type !== 'page') {
+        if (!$this->is_enabled($post_type)) {
             return;
         }
-        // Only first level pages that have subpages, sorted by title
-        $parent_pages = array_filter($this->get_children(0), function ($page) {
-            return $this->get_children($page->ID) !== [];
+
+        // Only first level items that have children, sorted by title
+        $parents = array_filter($this->get_children($post_type, 0), function ($post) {
+            return $this->get_children($post->post_type, $post->ID) !== [];
         });
-        if (!$parent_pages) {
+        if (!$parents) {
             return;
         }
-        usort($parent_pages, function ($a, $b) {
+        usort($parents, function ($a, $b) {
             return strcasecmp($a->post_title, $b->post_title);
         });
 
         $current = isset($_GET['eh_parent_pages']) ? absint($_GET['eh_parent_pages']) : 0;
 
         echo '<select name="eh_parent_pages">';
-        echo '<option value="">' . esc_html__('All first level pages', 'easy-hierarchy') . '</option>';
-        foreach ($parent_pages as $page) {
-            $title = $page->post_title !== '' ? $page->post_title : __('(no title)', 'default');
-            $count = $this->count_descendants($page->ID);
+        echo '<option value="">' . esc_html__('All first level items', 'easy-hierarchy') . '</option>';
+        foreach ($parents as $post) {
+            $count = $this->count_descendants($post_type, $post->ID);
             printf(
                 '<option value="%d"%s>%s</option>',
-                $page->ID,
-                selected($current, $page->ID, false),
-                esc_html($title . ' (' . number_format_i18n($count) . ')')
+                $post->ID,
+                selected($current, $post->ID, false),
+                esc_html($this->get_title($post) . ' (' . number_format_i18n($count) . ')')
             );
         }
         echo '</select>';
@@ -303,32 +444,24 @@ class Easy_Hierarchy_Plugin {
     public function show_subpages_filter_notice() {
         global $pagenow;
 
-        if (!is_admin() || $pagenow !== 'edit.php') {
+        if (!is_admin() || $pagenow !== 'edit.php' || empty($_GET['eh_parent_pages'])) {
             return;
         }
 
         $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : 'post';
-        if ($post_type !== 'page') {
-            return;
-        }
-
-        if (empty($_GET['eh_parent_pages'])) {
+        if (!$this->is_enabled($post_type)) {
             return;
         }
 
         $parent_id = absint($_GET['eh_parent_pages']);
-        if (!$parent_id) {
-            return;
-        }
-
-        $parent_title = get_the_title($parent_id);
+        $parent_title = $parent_id ? get_the_title($parent_id) : '';
         if (!$parent_title) {
             return;
         }
 
         $clear_url = remove_query_arg(['eh_parent_pages', 'paged']);
         $message = sprintf(
-            __('You are viewing subpages of "%s".', 'easy-hierarchy'),
+            __('You are viewing the children of "%s".', 'easy-hierarchy'),
             $parent_title
         );
 
@@ -336,18 +469,24 @@ class Easy_Hierarchy_Plugin {
             '<div class="notice notice-info"><p><span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true" style="vertical-align:text-bottom;margin-right:6px;"></span>%1$s <a href="%2$s">%3$s</a></p></div>',
             esc_html($message),
             esc_url($clear_url),
-            esc_html__('Show all pages', 'easy-hierarchy')
+            esc_html(get_post_type_object($post_type)->labels->all_items)
         );
+    }
+
+    public function register_column_hooks() {
+        foreach (array_keys($this->get_enabled_post_types()) as $post_type) {
+            add_filter("manage_{$post_type}_posts_columns", [$this, 'add_hierarchy_columns']);
+        }
     }
 
     public function hierarchy_columns_style() {
         $screen = get_current_screen();
-        if (!$screen || $screen->post_type !== 'page') {
+        if (!$screen || !$this->is_enabled($screen->post_type)) {
             return;
         }
         ?>
             <style>
-                .column-page_parent { 
+                .column-page_parent {
                     position: relative;
                     width: 15% !important;
                 }
@@ -427,56 +566,56 @@ class Easy_Hierarchy_Plugin {
     }
 
     public function render_hierarchy_columns($column, $post_id) {
-        if ($column === 'page_parent') {
-            // Filter links always start from the first page of results
-            $base_url = remove_query_arg('paged');
+        if ($column !== 'page_parent') {
+            return;
+        }
+        $post_type = get_post_type($post_id);
+        if (!$this->is_enabled($post_type)) {
+            return;
+        }
 
-            // Show parent hierarchy
-            $parents = [];
-            $pid = wp_get_post_parent_id($post_id);
-            while ($pid) {
-                array_unshift($parents, $pid);
-                $pid = wp_get_post_parent_id($pid);
-            }
-            
-            if (!empty($parents)) {
-                echo '<div class="eh-hierarchy-path">';
-                foreach ($parents as $index => $parent_id) {
-                    $parent_title = get_the_title($parent_id);
-                    echo '<div class="eh-hierarchy-item">';
-                    if ($index > 0) {
-                        echo '<span class="eh-hierarchy-separator">└</span>';
-                    }
-                    printf(
-                        '<a href="%s" class="eh-hierarchy-link" title="%s">%s</a>',
-                        esc_url(add_query_arg(['eh_parent_pages' => $parent_id], $base_url)),
-                        esc_attr(sprintf(__('Show children of "%s"', 'easy-hierarchy'), $parent_title)),
-                        esc_html($parent_title)
-                    );
-                    echo '</div>';
+        // Filter links always start from the first page of results
+        $base_url = remove_query_arg('paged');
+
+        // Show parent hierarchy
+        $parents = [];
+        $pid = wp_get_post_parent_id($post_id);
+        while ($pid) {
+            array_unshift($parents, $pid);
+            $pid = wp_get_post_parent_id($pid);
+        }
+
+        if (!empty($parents)) {
+            echo '<div class="eh-hierarchy-path">';
+            foreach ($parents as $index => $parent_id) {
+                $parent_title = get_the_title($parent_id);
+                echo '<div class="eh-hierarchy-item">';
+                if ($index > 0) {
+                    echo '<span class="eh-hierarchy-separator">└</span>';
                 }
+                printf(
+                    '<a href="%s" class="eh-hierarchy-link" title="%s">%s</a>',
+                    esc_url(add_query_arg(['eh_parent_pages' => $parent_id], $base_url)),
+                    esc_attr(sprintf(__('Show children of "%s"', 'easy-hierarchy'), $parent_title)),
+                    esc_html($parent_title)
+                );
                 echo '</div>';
             }
+            echo '</div>';
+        }
 
-            // Show children count inline if there are children
-            $count = $this->count_descendants($post_id);
-            if ($count) {
-                $tooltip = sprintf(
-                    _n('%s subpage', '%s subpages', $count, 'easy-hierarchy'),
-                    number_format_i18n($count)
-                );
-                $display_text = sprintf(
-                    '%s %s',
-                    number_format_i18n($count),
-                    _n('subpage', 'subpages', $count, 'easy-hierarchy')
-                );
-                printf(
-                    '<a href="%s" class="eh-children-count" title="%s"><span class="dashicons dashicons-arrow-right-alt2 eh-subpages-icon" aria-hidden="true"></span>%s</a>',
-                    esc_url(add_query_arg(['eh_parent_pages' => $post_id], $base_url)),
-                    esc_attr($tooltip),
-                    esc_html($display_text)
-                );
-            }
+        // Show children count inline if there are children
+        $count = $this->count_descendants($post_type, $post_id);
+        if ($count) {
+            $display_text = $post_type === 'page'
+                ? sprintf(_n('%s subpage', '%s subpages', $count, 'easy-hierarchy'), number_format_i18n($count))
+                : sprintf(_n('%s child', '%s children', $count, 'easy-hierarchy'), number_format_i18n($count));
+            printf(
+                '<a href="%s" class="eh-children-count" title="%s"><span class="dashicons dashicons-arrow-right-alt2 eh-subpages-icon" aria-hidden="true"></span>%s</a>',
+                esc_url(add_query_arg(['eh_parent_pages' => $post_id], $base_url)),
+                esc_attr($display_text),
+                esc_html($display_text)
+            );
         }
     }
 }

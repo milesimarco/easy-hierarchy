@@ -1,59 +1,67 @@
 === Easy Hierarchy ===
 Contributors: Milmor
-Tags: hierarchy, page-tree, admin, parent-child, page-management
+Tags: hierarchy, page tree, parent-child, custom post types, page management
 Donate link: https://www.paypal.me/milesimarco
 Requires at least: 4.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.2
+Stable tag: 3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Hierarchies made easy!
+Hierarchies made easy, for pages and any hierarchical post type.
 
 == Description ==
 
-Managing complex page hierarchies in WordPress can be a challenge. Easy Hierarchy streamlines your workflow by adding powerful tools to the admin area, making it simple to filter top-level pages and visualize parent-child relationships for every item.
+Managing complex hierarchies in WordPress can be a challenge. Easy Hierarchy adds a visual tree, a Hierarchy column and a parent filter to the admin, for Pages and for every hierarchical custom post type (docs, products, chapters and more).
 
 **Features:**
-- Adds a "Page Tree" submenu under Pages for a full visual hierarchy overview.
-- Displays parent and child relationships in a nested tree, including drafts, pending, private and scheduled pages.
-- Quick search box to filter pages by title.
-- Shows publish date, last revision date, and status for each page.
-- Direct Edit and View links for every page in the tree.
-- Highlights number of child pages for each parent.
-- **Adds a "Hierarchy" column to the Pages list:**  
-  - See the full parent hierarchy for each page, with clickable links to filter by parent.
-  - Instantly view the number of child pages for any page, with quick filtering.
+- Adds a "Tree" submenu (for example Pages > Page Tree) with a full visual hierarchy overview.
+- Shows drafts, pending, private and scheduled items too.
+- Quick search box to filter items by title.
+- Shows publish date, last revision date and status for each item, with direct Edit and View links.
+- Highlights the number of children for each parent.
+- **Adds a "Hierarchy" column to the list screen:**
+  - See the full parent hierarchy for each item, with clickable links to filter by parent.
+  - Instantly view the number of children, with quick filtering.
+- Parent filter dropdown with only the items that have children.
+- **Settings > Easy Hierarchy:** see all hierarchical post types, open their list or tree, and choose where Easy Hierarchy is active.
 - Fully integrated with the WordPress admin interface.
 
 == Installation ==
 
 1. Install the plugin via the WordPress.org plugin directory or upload the files to your server.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
-3. Visit the Pages > Page Tree screen to see the new hierarchy management features.
+3. Visit Pages > Page Tree, or Settings > Easy Hierarchy to see all supported post types.
 
 == Frequently Asked Questions ==
 
 = Where do I find the new features? =
-Go to the Pages section in your WordPress admin and click on "Page Tree" in the submenu. You’ll see a visual tree of your pages, with search and quick actions.
+Go to Pages > Page Tree for a visual tree of your pages, with search and quick actions. Every hierarchical post type gets its own Tree submenu. Settings > Easy Hierarchy lists them all.
 
 = Does this plugin work with custom post types? =
-Currently, Easy Hierarchy is designed for the built-in "Pages" post type. Support for custom post types may be added in future versions.
+Yes. Since version 3.0 Easy Hierarchy works with every hierarchical post type that has an admin screen. You can turn it off for single post types in Settings > Easy Hierarchy. Developers can also use the `easy_hierarchy_post_types` filter.
 
-= Can I edit or view pages from the tree? =
-Yes! Each page in the tree has Edit and View buttons for quick access.
+= Where is the tree of a post type that has no menu of its own? =
+Some plugins place their post types inside another menu. In that case open the tree from Settings > Easy Hierarchy.
+
+= Can I edit or view items from the tree? =
+Yes! Each item in the tree has Edit and View buttons for quick access.
 
 = What does the "Hierarchy" column do? =
-The "Hierarchy" column in the Pages list shows the full parent hierarchy for each page, with clickable links to filter by parent. It also displays the number of child pages for each page, making it easy to navigate and manage complex hierarchies.
+The "Hierarchy" column in the list screen shows the full parent hierarchy for each item, with clickable links to filter by parent. It also displays the number of children for each item, making it easy to navigate and manage complex hierarchies.
 
 == Screenshots ==
 
 1. Page Tree screen and Hierarchy column in the Pages list
+2. Settings > Easy Hierarchy with all hierarchical post types
 
 == Changelog ==
 
-= 2.2 2026-10-04 =
+= 3.0 2026-10-04 =
+* Added: Support for all hierarchical post types (tree, Hierarchy column and parent filter)
+* Added: Settings > Easy Hierarchy page to see all hierarchical post types, open their list or tree, and turn the plugin on or off for each one
+* Added: Settings link in the Plugins list
 * Tested with WP 7.1
 * Improved: Page Tree now shows drafts, pending, private and scheduled pages
 * Improved: Parent filter lists only pages with subpages, including non-published ones
@@ -90,5 +98,5 @@ The "Hierarchy" column in the Pages list shows the full parent hierarchy for eac
 
 == Upgrade Notice ==
 
-= 2.2 =
-Page Tree now includes non-published pages, plus filter fixes and security hardening.
+= 3.0 =
+Easy Hierarchy now works with every hierarchical post type, with a new settings page. Also includes non-published items in the tree, filter fixes and security hardening.
