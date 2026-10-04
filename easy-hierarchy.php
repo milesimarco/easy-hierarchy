@@ -231,14 +231,38 @@ class Easy_Hierarchy_Plugin {
         if ($post_type !== 'page') {
             return;
         }
-        $parent_pages = get_pages(['parent' => 0, 'post_status' => self::PAGE_STATUSES, 'sort_column' => 'post_title']);
+        // Load all pages once and count descendants in memory
+        $pages = get_pages(['post_status' => self::PAGE_STATUSES, 'sort_column' => 'post_title']);
+        $children = [];
+        foreach ($pages as $page) {
+            $children[$page->post_parent][] = $page->ID;
+        }
+        $count_descendants = function ($id) use (&$count_descendants, $children) {
+            $count = 0;
+            foreach ($children[$id] ?? [] as $child_id) {
+                $count += 1 + $count_descendants($child_id);
+            }
+            return $count;
+        };
+
+        // Only first level pages that have subpages
+        $parent_pages = [];
+        foreach ($pages as $page) {
+            if (!$page->post_parent && !empty($children[$page->ID])) {
+                $parent_pages[] = $page;
+            }
+        }
+        if (!$parent_pages) {
+            return;
+        }
+
         $current = isset($_GET['eh_parent_pages']) ? absint($_GET['eh_parent_pages']) : 0;
 
         echo '<select name="eh_parent_pages">';
         echo '<option value="">' . esc_html__('All first level pages', 'easy-hierarchy') . '</option>';
         foreach ($parent_pages as $page) {
             $title = $page->post_title !== '' ? $page->post_title : __('(no title)', 'default');
-            $count = count(get_pages(['child_of' => $page->ID, 'post_status' => self::PAGE_STATUSES]));
+            $count = $count_descendants($page->ID);
             printf(
                 '<option value="%d"%s>%s</option>',
                 $page->ID,

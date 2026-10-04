@@ -56,7 +56,7 @@ The "Hierarchy" column in the Pages list shows the full parent hierarchy for eac
 = 2.2 2026-10-04 =
 * Tested with WP 7.1
 * Improved: Page Tree now shows drafts, pending, private and scheduled pages
-* Improved: Parent filter includes non-published parent pages
+* Improved: Parent filter lists only pages with subpages, including non-published ones
 * Improved: Search shows a message when no pages match
 * Fixed: Parent filter no longer affects other queries on the Pages screen
 * Fixed: Filter links now reset pagination
